@@ -1,0 +1,13 @@
+{
+    "name": "tuyendd/pshift",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "TuyenDD",
+            "email": "tuyendd.itz@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
