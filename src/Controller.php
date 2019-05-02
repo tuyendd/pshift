@@ -8,7 +8,7 @@
  * @group 基本
  * @access エンドユーザーだけ
  */
-class BaseController {
+class Controller {
     
     public $title;
     public $active;
