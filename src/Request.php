@@ -1,5 +1,7 @@
 <?php namespace Pshift;
 
+use Pshift\Db;
+
 /**
  * コントローラーの基本クラス
  * @since 2019年05月01日
@@ -9,67 +11,118 @@
  * @access エンドユーザーだけ
  */
 class Request {
+    /**
+     * @var string
+     */
+    public $method;
+
+    /**
+     * Query string parameters ($_GET).
+     *
+     */
+    public $params;
+    /**
+     * Server and execution environment parameters ($_SERVER).
+     *
+     */
+    public $server;
+    /**
+     * @var string
+     */
+    public $baseUrl;
+
+    /**
+     * @var string
+     */
+    public $basePath;
     
-    // リクエストのURLを含む
-    private $url = null;
-
-    // リクエストの種類は「GET | POST」だけを含む
-    private $type = null;
-
-    //リクエストのセグメント
-    private $segments = null;
-
-    // リクエストのコントローラー名
-    private $controller = null;
-    
-    // コントローラーのメソッド
-    private $method = null;
-    
-    // パラメーター配列
-    private $parameters = null;
-
+    /**
+     * @var string
+     */
+    public $moduleName;
+    /**
+     * @var string
+     */
+    public $controllerName;
+    /**
+     * @var string
+     */
+    public $actionName;
     /**
      * 新しいコントローラのインスタンスを作る時に、モデル名、コントローラ名、アクションが設定されます。
      * 
      * @return void
      */
-    public function __construct() {
-        $this->url = Sanitizer::sanitizeURL(rtrim(substr($_SERVER["REQUEST_URI"], 1), '/'));
-        $this->type = $_SERVER['REQUEST_METHOD'];
-        $this->parameters = (object) array();
-
-        self::parseURL();
-
-        $postParameters = filter_input_array(INPUT_POST);
-        $cookieParameters = filter_input_array(INPUT_COOKIE);
-
-        if(!is_null($postParameters))
-        {
-            foreach($postParameters as $parameter => $value)
-            {
-                if(!isset($this->parameters->postParameters))
-                {
-                    $this->parameters->postParameters = (object) array();
-                }
-
-                $this->parameters->postParameters->{$parameter} = $value;
+    public function __construct() {    
+        $this->initialize();        
+        $this->setURLMapper();
+    }
+    /**
+     * @since 2019年05月01日
+     * @author 杜低選 <tuyedd.itz@gmail.com>
+     * 
+     * @group 基本
+     * @category システム全体
+     *
+     * @return void
+     */
+    private function initialize() {
+        $this->method   = strtoupper($_SERVER['REQUEST_METHOD']);
+        $this->basePath = $_SERVER['CONTEXT_DOCUMENT_ROOT'];
+        $this->baseUrl  = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['SERVER_NAME'];
+        $this->params   = $_REQUEST;
+        
+        if ('POST' == $this->method) {
+            foreach($_POST as $key => $val) {
+                $this->params[$key] = filter_input(INPUT_POST, $key, FILTER_SANITIZE_SPECIAL_CHARS);
+            }
+        }     
+    }
+    /**
+     * @since 2019年05月01日
+     * @author 杜低選 <tuyedd.itz@gmail.com>
+     * 
+     * @group 基本
+     * @category システム全体
+     *
+     * @return void
+     */
+    private function setURLMapper() {        
+        $classLoaders = [];
+        $data = require ROOT. '/vendor/composer/autoload_classmap.php' ;
+        foreach ($data AS $key=>$path) {
+            $elements = explode('\\', $key);
+            if (trim(strtolower($elements[0])) == 'modules' && trim(strtolower($elements[2])) == 'controllers') {
+                $classLoaders[strtolower($elements[1])] = [$elements[1], $elements[3]];
             }
         }
-
-        if(!is_null($cookieParameters))
-        {
-            foreach($cookieParameters as $parameter => $value)
-            {
-                if(!isset($this->parameters->cookieParameters))
-                {
-                    $this->parameters->cookieParameters = (object) array();
+        $requestURI = explode('/', $_SERVER['REQUEST_URI']); 
+        unset($requestURI[0]);
+        $key = strtolower($requestURI[1]);
+        if (isset($classLoaders[$key])) {
+            list($this->moduleName, $controllerName) = $classLoaders[$key]; 
+            if (strcasecmp(str_replace('Controller', '', $controllerName), $requestURI[2]) == 0) {
+                $this->controllerName   = $controllerName;
+                $this->actionName       = $requestURI[3]; 
+            } 
+        } else {
+            foreach ($classLoaders AS $key=>$el) {
+                list($this->moduleName, $controllerName) = $el;
+                if (strcasecmp(str_replace('Controller', '', $controllerName), $requestURI[1]) == 0) {
+                    $this->controllerName   = $controllerName;
+                    $this->actionName       = $requestURI[2]; 
+                    break;
                 }
-
-                $this->parameters->cookieParameters->{$parameter} = $value;
             }
         }
-    }
-
+        $this->actionName = str_replace(' ', '', 
+            preg_replace('/\b(\w)/e', 'strtoupper("$1")', 
+                    preg_replace("/[^A-Za-z0-9?\s]/"," ", 
+                        str_replace(array('.html', '.htm'), '', $this->actionName)
+                    )
+                )
+            ); 
+    }    
     /**
      * @since 2019年05月01日
      * @author 杜低選 <tuyedd.itz@gmail.com>
@@ -77,99 +130,40 @@ class Request {
      * @group 基本
      * @category システム全体
      *
-     * @return リクエストのオブジェクトを返る、その為、それによって使えますよ。
+     * @return void
      */
-    public function getRequest()
-    {
-        return new self;
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return ヌル
-     */
-    private function parseURL()
-    {
-        $url = $this->url;
-        $this->segments = explode('/', $url);
-
-        $this->parameters->getParameters = array_values(array_diff(array_slice($this->segments, 2), array('')));
-        $this->parameters->controller = isset($this->segments[0]) && !empty($this->segments[0]) ? $this->segments[0] : 'index';
-        $this->parameters->method = isset($this->segments[1]) && !empty($this->segments[1]) ? $this->segments[1] : 'index';
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return URLを返る
-     */
-    public function getURL()
-    {
-        return $this->url;
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return リクエストの種類を返る
-     */
-    public function getType()
-    {
-        return $this->type;
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return 各パラメーター配列を返る。
-     */
-    public function getParameters()
-    {
-        return $this->parameters;
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return リクエスト名を返る
-     */
-    public function getController()
-    {
-        return $this->parameters->controller;
-    }
-
-    /**
-     * @since 2019年05月01日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return リクエストのメソッド名を返る。
-     */
-    public function getMethod()
-    {
-        return $this->parameters->method;
+    public function url($mod="") { 
+        $url = "http://".$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']; 
+        $query = explode("&", $_SERVER['QUERY_STRING']);
+        $queryStart = !$_SERVER['QUERY_STRING'] ? "?" : "&";
+        
+        // modify/delete data 
+        foreach($query as $q) { 
+            list($key, $value) = explode("=", $q); 
+            if(array_key_exists($key, $mod)) { 
+                if($mod[$key]) { 
+                    $url = preg_replace("/{$key}={$value}/", "{$key}=" . $mod[$key], $url); 
+                } else { 
+                    $url = preg_replace('/&?' . "{$key}={$value}/", '', $url); 
+                } 
+            } 
+        } 
+        
+        // add new data 
+        if (is_array($mod)) {
+            foreach($mod as $key => $value) { 
+                if($value && !preg_match("/{$key}=/", $url)) { 
+                    $url .= "{$queryStart}{$key}={$value}"; 
+                } 
+            } 
+        }
+        return $url; 
+    } 
+}
+if (!function_exists('dd')) {
+    function dd($rs) {
+        echo '<pre>';
+        var_dump($rs);
+        echo '</pre>';
     }
 }

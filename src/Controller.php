@@ -1,5 +1,7 @@
 <?php namespace Pshift;
 
+use Pshift\Request;
+
 /**
  * コントローラーの基本クラス
  * @since 2019年05月01日
@@ -8,7 +10,7 @@
  * @group 基本
  * @access エンドユーザーだけ
  */
-class Controller {
+class Controller extends Request {
     
     public $title;
     public $active;
@@ -54,7 +56,7 @@ class Controller {
      * 
      * @return \Illuminate\View\View|\Illuminate\Contracts\View\Factory
      */
-    public function view($view = null, $data = []) {        
+    public function view($view = null, $data = []) {     
         
         $mergeData = array_merge([
                 'title'             => $this->title,
