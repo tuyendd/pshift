@@ -10,7 +10,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "kreait/firebase-php": "^3.0"
+        "ktamas77/firebase-php": "*"
     },
     "autoload": {
         "psr-4": {
