@@ -10,6 +10,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
+        "geckob/firebase": "^1.0"
     },
     "autoload": {
         "psr-4": {
