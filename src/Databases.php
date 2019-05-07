@@ -1,5 +1,7 @@
 <?php namespace Pshift;
 
+use Pshift\Request;
+
 /**
  * @since 2019年05月03日
  * @author 杜低選 <tuyedd.itz@gmail.com>
@@ -7,8 +9,9 @@
  * @group システム
  * @access 管理者
  */
-class Db {
-    
+class Databases {
+    public $db;
+
     protected $conn;
     /**
      * 新しいコントローラのインスタンスを作る時に、権限が設定されます。
@@ -16,30 +19,26 @@ class Db {
      * @return void
      */
     public function __construct() {
-        $this->conn = $this->connect();
-    }
-    /**
-     * @since 2019年05月03日
-     * @author 杜低選 <tuyedd.itz@gmail.com>
-     * 
-     * @group 基本
-     * @category システム全体
-     *
-     * @return void
-     */
-    public function connect() {
         try {
-            return new PDO('mysql:dbname=mysql;host=localhost', 
-                $this->user, 
-                $this->password, 
+            $setting = Request::env();
+            $this->db = (isset($setting['DB_DATABASE']) ? $setting['DB_DATABASE'] : 'mysql');
+            $this->conn = new \PDO('mysql:dbname=' . $this->db . ';host=' . (isset($setting['DB_HOST']) ? $setting['DB_HOST'] : '127.0.0.1'), 
+                isset($setting['DB_USERNAME']) ? $setting['DB_USERNAME'] : '', 
+                isset($setting['DB_PASSWORD']) ? $setting['DB_PASSWORD'] : '', 
                 array(
-                    PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES UTF8',
+                    \PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES UTF8',
                 )
             );
         } catch (PDOException $e) {
             echo 'Connection failed: ' . $e->getMessage();
         }
     }
+    public function setDb($dbname = '') {
+        if ($dbname == '') {
+            $dbname = $this->db;
+        }
+        $this->conn->query("USE " . $dbname . ";");
+    }
     /**
      * @since 2019年05月03日
      * @author 杜低選 <tuyedd.itz@gmail.com>
@@ -49,9 +48,9 @@ class Db {
      *
      * @return void
      */
-    public function fetch($query, $fetch_style = PDO::FETCH_OBJ, $debug = FALSE) {
+    public function fetch($query, $fetch_style = \PDO::FETCH_OBJ, $debug = FALSE) {
         if ($debug) {
-            echo $query, "\n";
+            echo $query, "<br />";
         }
         try {
             if (!$debug) {
@@ -61,7 +60,7 @@ class Db {
                 return $sth->fetchAll($fetch_style);
             }
         } catch (Exception $ex) {
-            echo $ex->getMessage(), "\n", $query, "\n";
+            echo $ex->getMessage(), "<br />", $query, "<br />";
         }
         return false;
     }
@@ -87,14 +86,14 @@ class Db {
         }
 
         if ($debug) {
-            echo $query, "\n";
+            echo $query, "<br />";
         }
         try {
             if (!$debug) {
                 return $this->conn->query($query);
             }
         } catch (Exception $ex) {
-            echo $ex->getMessage(), "\n", $query, "\n";
+            echo $ex->getMessage(), "<br />", $query, "<br />";
         }
         return false;
     }
@@ -131,14 +130,14 @@ class Db {
             $query .= $wh ? " WHERE {$wh}" : "";
         }
         if ($debug) {
-            echo $query, "; \n";
+            echo $query, ";<br />";
         }
         try {
             if (!$debug) {
                 return $this->conn->query($query);
             }
         } catch (Exception $ex) {
-            echo $ex->getMessage(), "\n", $query, "\n";
+            echo $ex->getMessage(), "<br />", $query, "<br />";
         }
         return false;
     }
@@ -164,14 +163,14 @@ class Db {
             $query .= $arg ? " WHERE {$arg}" : "";
         }
         if ($debug) {
-            echo $query, "; \n";
+            echo $query, ";<br />";
         }
         try {
             if (!$debug) {
                 return $this->conn->query($query);
             }
         } catch (Exception $ex) {
-            echo $ex->getMessage(), "\n", $query, "\n";
+            echo $ex->getMessage(), "<br />", $query, "<br />";
         }
         return false;
     }
